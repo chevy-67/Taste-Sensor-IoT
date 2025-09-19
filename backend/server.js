@@ -19,8 +19,9 @@ mongoose.connect(MONGO_URI)
 
 const sensorSchema = new mongoose.Schema({
     temperature : Number,
-    timestamp : {type:Date,default:Date.now()}
-})
+    timestamp : {type:Date,default:Date.now}},
+    { collection: "sensorData" }
+)
 
 const Sensor = new mongoose.model("Sensor",sensorSchema)
 
@@ -39,6 +40,18 @@ app.post("/api/sensor", async (req,res)=>{
 app.get('/api/sensor', async (req, res) => {
     const data = await Sensor.find().sort({ timestamp: -1 }).limit(10);
     res.json(data);
+});
+
+app.get("/api/sensor/last24h", async (req, res) => {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const data = await Sensor.find({ timestamp: { $gte: since } }).sort({
+      timestamp: 1,
+    });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 app.listen(PORT,()=>{console.log("Server Listening...")})
