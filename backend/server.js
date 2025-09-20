@@ -1,23 +1,24 @@
-const express = require('express')
-const mongoose = require('mongoose')
-const cors = require('cors')
-const dotenv = require('dotenv')
-const { Configuration, OpenAIApi } = require("openai");
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const OpenAI = require('openai'); // <-- use OpenAI like this
 
-const app = express()
+const app = express();
+dotenv.config();
 
-dotenv.config()
+const MONGO_URI = process.env.MONGO_URI;
+const PORT = process.env.PORT || 5000;
 
-const MONGO_URI = process.env.MONGO_URI
-const PORT = process.env.PORT
+app.use(cors());
+app.use(express.json());
 
-app.use(cors())
-app.use(express.json())
-
+// MongoDB connection
 mongoose.connect(MONGO_URI)
-.then(()=>{console.log("MongoDB connected...")})
-.catch(err=>console.log(err))
+  .then(() => console.log("MongoDB connected..."))
+  .catch(err => console.log(err));
 
+// Sensor schema & model
 const sensorSchema = new mongoose.Schema(
   {
     mq8_voltage: Number,
@@ -35,32 +36,10 @@ const sensorSchema = new mongoose.Schema(
 
 const Sensor = mongoose.model("Sensor", sensorSchema);
 
+// Save new sensor data
 app.post("/api/sensor", async (req, res) => {
   try {
-    const {
-      mq8_voltage,
-      mq_other_voltage,
-      color_r,
-      color_g,
-      color_b,
-      dominant_color,
-      temperature,
-      humidity,
-      timestamp,
-    } = req.body;
-
-    const newData = new Sensor({
-      mq8_voltage,
-      mq_other_voltage,
-      color_r,
-      color_g,
-      color_b,
-      dominant_color,
-      temperature,
-      humidity,
-      timestamp,
-    });
-
+    const newData = new Sensor(req.body);
     await newData.save();
     res.status(201).json({ message: "Success" });
   } catch (err) {
@@ -68,39 +47,39 @@ app.post("/api/sensor", async (req, res) => {
   }
 });
 
-
+// Get latest 10 sensor readings
 app.get('/api/sensor', async (req, res) => {
-    const data = await Sensor.find().sort({ timestamp: -1 }).limit(10);
-    res.json(data);
-});
-
-app.get("/api/sensor/last24h", async (req, res) => {
   try {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const data = await Sensor.find({ timestamp: { $gte: since } }).sort({
-      timestamp: 1,
-    });
+    const data = await Sensor.find().sort({ timestamp: -1 }).limit(10);
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY, // Add your OpenAI API key in .env
+// Get sensor readings for last 24 hours
+app.get("/api/sensor/last24h", async (req, res) => {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const data = await Sensor.find({ timestamp: { $gte: since } }).sort({ timestamp: 1 });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
-const openai = new OpenAIApi(configuration);
+
+// OpenAI setup
+const configuration = new OpenAI.Configuration({
+  apiKey: process.env.OPENAI_API_KEY
+});
+const openai = new OpenAI.OpenAIApi(configuration);
 
 // Taste prediction endpoint
 app.post("/api/predict-taste", async (req, res) => {
   const { readings } = req.body;
-
-  if (!readings) {
-    return res.status(400).json({ error: "Sensor readings are required" });
-  }
+  if (!readings) return res.status(400).json({ error: "Sensor readings are required" });
 
   try {
-    // Construct a prompt for ChatGPT
     const prompt = `
       You are a taste prediction AI. 
       Based on the following sensor readings, predict the taste (sour, bitter, salty) of the sample:
@@ -116,14 +95,14 @@ app.post("/api/predict-taste", async (req, res) => {
       Only return one word: sour, bitter, or salty.
     `;
 
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       temperature: 0,
       max_tokens: 10,
     });
 
-    const taste = response.data.choices[0].message.content.trim();
+    const taste = response.choices[0].message.content.trim();
     res.json({ taste });
   } catch (err) {
     console.error(err);
@@ -131,4 +110,4 @@ app.post("/api/predict-taste", async (req, res) => {
   }
 });
 
-app.listen(PORT,()=>{console.log("Server Listening...")})
+app.listen(PORT, () => console.log(`Server Listening on port ${PORT}...`));
