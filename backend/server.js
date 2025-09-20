@@ -2,6 +2,7 @@ const express = require('express')
 const mongoose = require('mongoose')
 const cors = require('cors')
 const dotenv = require('dotenv')
+import { Configuration, OpenAIApi } from "openai";
 
 const app = express()
 
@@ -82,6 +83,51 @@ app.get("/api/sensor/last24h", async (req, res) => {
     res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY, // Add your OpenAI API key in .env
+});
+const openai = new OpenAIApi(configuration);
+
+// Taste prediction endpoint
+app.post("/api/predict-taste", async (req, res) => {
+  const { readings } = req.body;
+
+  if (!readings) {
+    return res.status(400).json({ error: "Sensor readings are required" });
+  }
+
+  try {
+    // Construct a prompt for ChatGPT
+    const prompt = `
+      You are a taste prediction AI. 
+      Based on the following sensor readings, predict the taste (sour, bitter, salty) of the sample:
+
+      Temperature: ${readings.temperature ?? "N/A"} °C
+      Humidity: ${readings.humidity ?? "N/A"} %
+      MQ-8 Voltage: ${readings.mq8_voltage ?? "N/A"} V
+      Other MQ Voltage: ${readings.mq_other_voltage ?? "N/A"} V
+      Color R Pulse: ${readings.color_r ?? "N/A"}
+      Color G Pulse: ${readings.color_g ?? "N/A"}
+      Color B Pulse: ${readings.color_b ?? "N/A"}
+
+      Only return one word: sour, bitter, or salty.
+    `;
+
+    const response = await openai.createChatCompletion({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0,
+      max_tokens: 10,
+    });
+
+    const taste = response.data.choices[0].message.content.trim();
+    res.json({ taste });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to predict taste" });
   }
 });
 
