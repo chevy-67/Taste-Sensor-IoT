@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const OpenAI = require('openai'); // <-- use OpenAI like this
+const OpenAI = require('openai'); // Correct CommonJS import
 
 const app = express();
 dotenv.config();
@@ -68,11 +68,10 @@ app.get("/api/sensor/last24h", async (req, res) => {
   }
 });
 
-// OpenAI setup
-const configuration = new OpenAI.Configuration({
+// OpenAI setup for CommonJS
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
-const openai = new OpenAI.OpenAIApi(configuration);
 
 // Taste prediction endpoint
 app.post("/api/predict-taste", async (req, res) => {
