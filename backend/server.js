@@ -13,29 +13,56 @@ const PORT = process.env.PORT
 app.use(cors())
 app.use(express.json())
 
-mongoose.connect(MONGO_URI)
-.then(()=>{console.log("MongoDB Connected...")})
-.catch((err)=>{console.log(err)})
+const sensorSchema = new mongoose.Schema(
+  {
+    mq8_voltage: Number,
+    mq_other_voltage: Number,
+    color_r: Number,
+    color_g: Number,
+    color_b: Number,
+    dominant_color: String,
+    temperature: Number,
+    humidity: Number,
+    timestamp: { type: Date, default: Date.now },
+  },
+  { collection: "sensorData" }
+);
 
-const sensorSchema = new mongoose.Schema({
-    temperature : Number,
-    timestamp : {type:Date,default:Date.now}},
-    { collection: "sensorData" }
-)
+const Sensor = mongoose.model("Sensor", sensorSchema);
 
-const Sensor = new mongoose.model("Sensor",sensorSchema)
+app.post("/api/sensor", async (req, res) => {
+  try {
+    const {
+      mq8_voltage,
+      mq_other_voltage,
+      color_r,
+      color_g,
+      color_b,
+      dominant_color,
+      temperature,
+      humidity,
+      timestamp,
+    } = req.body;
 
-app.post("/api/sensor", async (req,res)=>{
-    try{
-        const {temperature,timestamp} = req.body
-        const newData = new Sensor({temperature,timestamp})
-        await newData.save()
-        res.status(201).json({"message":"Success"})
-    }
-    catch(err){
-        res.status(500).json({"message":err})
-    }
-})
+    const newData = new Sensor({
+      mq8_voltage,
+      mq_other_voltage,
+      color_r,
+      color_g,
+      color_b,
+      dominant_color,
+      temperature,
+      humidity,
+      timestamp,
+    });
+
+    await newData.save();
+    res.status(201).json({ message: "Success" });
+  } catch (err) {
+    res.status(500).json({ message: err.message || err });
+  }
+});
+
 
 app.get('/api/sensor', async (req, res) => {
     const data = await Sensor.find().sort({ timestamp: -1 }).limit(10);
