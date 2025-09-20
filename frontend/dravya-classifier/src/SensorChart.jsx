@@ -27,7 +27,7 @@ const TastePredictor = ({ readings }) => {
 
   const getTaste = async () => {
     try {
-      const response = await fetch("/api/predict-taste", {
+      const response = await fetch("https://taste-sensor-iot-data.onrender.com/api/predict-taste", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ readings }),

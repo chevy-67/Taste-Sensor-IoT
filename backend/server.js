@@ -2,21 +2,28 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const OpenAI = require('openai'); // Correct CommonJS import
+const OpenAI = require('openai'); // CommonJS import
 
-const app = express();
 dotenv.config();
 
-const MONGO_URI = process.env.MONGO_URI;
+const app = express();
 const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI;
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
+if (!OPENAI_KEY) {
+  console.error("❌ ERROR: OPENAI_API_KEY is not set in environment variables");
+  process.exit(1);
+}
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
 // MongoDB connection
 mongoose.connect(MONGO_URI)
-  .then(() => console.log("MongoDB connected..."))
-  .catch(err => console.log(err));
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.error("❌ MongoDB connection error:", err));
 
 // Sensor schema & model
 const sensorSchema = new mongoose.Schema(
@@ -48,7 +55,7 @@ app.post("/api/sensor", async (req, res) => {
 });
 
 // Get latest 10 sensor readings
-app.get('/api/sensor', async (req, res) => {
+app.get("/api/sensor", async (req, res) => {
   try {
     const data = await Sensor.find().sort({ timestamp: -1 }).limit(10);
     res.json(data);
@@ -68,9 +75,9 @@ app.get("/api/sensor/last24h", async (req, res) => {
   }
 });
 
-// OpenAI setup for CommonJS
+// OpenAI client for CommonJS
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: OPENAI_KEY
 });
 
 // Taste prediction endpoint
@@ -81,7 +88,7 @@ app.post("/api/predict-taste", async (req, res) => {
   try {
     const prompt = `
       You are a taste prediction AI. 
-      Based on the following sensor readings, predict the taste (sour, bitter, salty) of the sample:
+      Based on the following sensor readings, predict the taste (sour, bitter, salty):
 
       Temperature: ${readings.temperature ?? "N/A"} °C
       Humidity: ${readings.humidity ?? "N/A"} %
@@ -104,9 +111,10 @@ app.post("/api/predict-taste", async (req, res) => {
     const taste = response.choices[0].message.content.trim();
     res.json({ taste });
   } catch (err) {
-    console.error(err);
+    console.error("❌ OpenAI request failed:", err);
     res.status(500).json({ error: "Failed to predict taste" });
   }
 });
 
-app.listen(PORT, () => console.log(`Server Listening on port ${PORT}...`));
+// Start server
+app.listen(PORT, () => console.log(`✅ Server listening on port ${PORT}`));
