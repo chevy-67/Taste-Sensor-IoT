@@ -13,6 +13,10 @@ const PORT = process.env.PORT
 app.use(cors())
 app.use(express.json())
 
+mongoose.connect(MONGO_URI)
+.then(()=>{console.log("MongoDB connected...")})
+.catch(err=>console.log(err))
+
 const sensorSchema = new mongoose.Schema(
   {
     mq8_voltage: Number,
