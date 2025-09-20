@@ -11,6 +11,7 @@ const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
+// Ensure API key is set
 if (!OPENAI_KEY) {
   console.error("❌ ERROR: OPENAI_API_KEY is not set in environment variables");
   process.exit(1);
@@ -26,20 +27,17 @@ mongoose.connect(MONGO_URI)
   .catch(err => console.error("❌ MongoDB connection error:", err));
 
 // Sensor schema & model
-const sensorSchema = new mongoose.Schema(
-  {
-    mq8_voltage: Number,
-    mq_other_voltage: Number,
-    color_r: Number,
-    color_g: Number,
-    color_b: Number,
-    dominant_color: String,
-    temperature: Number,
-    humidity: Number,
-    timestamp: { type: Date, default: Date.now },
-  },
-  { collection: "sensorData" }
-);
+const sensorSchema = new mongoose.Schema({
+  mq8_voltage: Number,
+  mq_other_voltage: Number,
+  color_r: Number,
+  color_g: Number,
+  color_b: Number,
+  dominant_color: String,
+  temperature: Number,
+  humidity: Number,
+  timestamp: { type: Date, default: Date.now },
+}, { collection: "sensorData" });
 
 const Sensor = mongoose.model("Sensor", sensorSchema);
 
@@ -75,10 +73,8 @@ app.get("/api/sensor/last24h", async (req, res) => {
   }
 });
 
-// OpenAI client for CommonJS
-const openai = new OpenAI({
-  apiKey: OPENAI_KEY
-});
+// OpenAI client
+const openai = new OpenAI({ apiKey: OPENAI_KEY });
 
 // Taste prediction endpoint
 app.post("/api/predict-taste", async (req, res) => {
